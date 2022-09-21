@@ -1,0 +1,38 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/MessageRelay.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.9;\n\nimport \"./Validator.sol\";\n\nerror MessageRelay__UsernameAlreadyExists();\nerror MessageRelay__AddressAlreadyRegistered();\nerror MessageRelay__InvalidUsername();\nerror MessageRelay__NoUser();\nerror MessageRelay__NoPublicKey();\nerror MessageRelay__NoMessage();\nerror MessageRelay__InvalidMessage();\n\ncontract MessageRelay {\n    struct Message {\n        string content;\n        uint256 createdAt;\n    }\n\n    mapping(string => address) private usernameToAddress;\n    mapping(address => string) private addressToUsername;\n    mapping(string => string) private usernameToPublicKey;\n    mapping(address => mapping(address => Message))\n        private userAddressToMessage;\n\n    function addUser(string memory username, string memory publicKey) public {\n        if (!Validator.validateUsername(username)) {\n            revert MessageRelay__InvalidUsername();\n        }\n\n        string memory addressUsername = addressToUsername[msg.sender];\n        if (bytes(addressUsername).length != 0) {\n            revert MessageRelay__AddressAlreadyRegistered();\n        }\n\n        address userAddress = usernameToAddress[username];\n        if (userAddress != address(0x0)) {\n            revert MessageRelay__UsernameAlreadyExists();\n        }\n\n        usernameToAddress[username] = msg.sender;\n        addressToUsername[msg.sender] = username;\n        usernameToPublicKey[username] = publicKey;\n    }\n\n    function changeUserPublicKey(string memory publicKey) public payable {\n        string memory username = getUsername();\n        usernameToPublicKey[username] = publicKey;\n    }\n\n    function getUsername() public view returns (string memory) {\n        string memory username = addressToUsername[msg.sender];\n        if (bytes(username).length == 0) {\n            revert MessageRelay__NoUser();\n        }\n        return username;\n    }\n\n    function getUserAddress(string memory username)\n        private\n        view\n        returns (address)\n    {\n        address userAddress = usernameToAddress[username];\n        if (userAddress == address(0x0)) {\n            revert MessageRelay__NoUser();\n        }\n        return userAddress;\n    }\n\n    function getPublicKey(string memory username)\n        public\n        view\n        returns (string memory)\n    {\n        string memory publicKey = usernameToPublicKey[username];\n        if (bytes(publicKey).length == 0) {\n            revert MessageRelay__NoPublicKey();\n        }\n        return publicKey;\n    }\n\n    function sendMessage(string memory username, string memory content) public {\n        if (!Validator.validateMessage(content)) {\n            revert MessageRelay__InvalidMessage();\n        }\n\n        address receiverAddress = getUserAddress(username);\n        userAddressToMessage[receiverAddress][msg.sender] = Message(\n            content,\n            block.timestamp * 1000\n        );\n    }\n\n    function getMessage(string memory fromUsername)\n        public\n        view\n        returns (Message memory)\n    {\n        address from = getUserAddress(fromUsername);\n        Message memory message = userAddressToMessage[msg.sender][from];\n        if (bytes(message.content).length == 0) {\n            revert MessageRelay__NoMessage();\n        }\n\n        return message;\n    }\n\n    function deleteMessageFrom(string memory fromUsername) public payable {\n        address from = getUserAddress(fromUsername);\n        Message memory message = userAddressToMessage[msg.sender][from];\n        if (bytes(message.content).length == 0) {\n            revert MessageRelay__NoMessage();\n        }\n        delete userAddressToMessage[msg.sender][from];\n    }\n\n    function hasMessageFrom(string memory fromUsername)\n        public\n        view\n        returns (bool)\n    {\n        address from = getUserAddress(fromUsername);\n        Message memory message = userAddressToMessage[msg.sender][from];\n        return bytes(message.content).length > 0;\n    }\n\n    function hasMessageTo(string memory toUsername) public view returns (bool) {\n        address to = getUserAddress(toUsername);\n        Message memory message = userAddressToMessage[to][msg.sender];\n        return bytes(message.content).length > 0;\n    }\n}\n"
+    },
+    "contracts/Validator.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.9;\n\nlibrary Validator {\n    function validateUsername(string memory username)\n        internal\n        pure\n        returns (bool)\n    {\n        bytes memory usernameBytes = bytes(username);\n        if (usernameBytes.length > 256 || usernameBytes.length < 4) {\n            return false;\n        }\n\n        bool hasAlphaNumeric = false;\n\n        for (uint256 i; i < usernameBytes.length; i++) {\n            bytes1 char = usernameBytes[i];\n\n            if (\n                !(char >= 0x30 && char <= 0x39) && //9-0\n                !(char >= 0x41 && char <= 0x5A) && //A-Z\n                !(char >= 0x61 && char <= 0x7A) && //a-z\n                char != 0x5F // _\n            ) {\n                return false;\n            }\n\n            if (char != 0x5F && !hasAlphaNumeric) {\n                hasAlphaNumeric = true;\n            }\n        }\n\n        return hasAlphaNumeric;\n    }\n\n    function validateMessage(string memory message)\n        internal\n        pure\n        returns (bool)\n    {\n        return bytes(message).length > 0 && bytes(message).length <= 1024;\n    }\n}\n"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    },
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}
