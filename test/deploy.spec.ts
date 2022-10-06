@@ -6,44 +6,33 @@ import { MessageRelay } from '../typechain-types'
 describe('MessageRelay', async () => {
   const usernameSender1 = 's3nder_1'
   const publicKeySender1 = 'public_key_s3nder_1'
+  const addressSender1 = '0x71bE63f3384f5fb98995898A86B02Fb2426c5788'
   const usernameSender2 = 'sEnder_2'
   const publicKeySender2 = 'public_key_sEnder_2'
+  const addressSender2 = '0xFABB0ac9d68B0B445fB7357272Ff202C5651694a'
   const usernameReceiver1 = 'r3ceiver_1'
   const publicKeyReceiver1 = 'public_key_r3ceiver_1'
+  const addressReceiver1 = '0x1CBd3b2770909D4e10f157cABC84C7264073C9Ec'
   const usernameReceiver2 = 'rEceiver_2'
   const publicKeyReceiver2 = 'public_key_rEceiver_2'
+  const addressReceiver2 = '0xdF3e18d64BC6A983f673Ab319CCaE4f1a57C7097'
 
   let deployer: string
-  let sender1: string
-  let sender2: string
-  let receiver1: string
-  let receiver2: string
-
-  let messageRelayContractFromSender1: MessageRelay
-  let messageRelayContractFromSender2: MessageRelay
-  let messageRelayContractFromReceiver1: MessageRelay
-  let messageRelayContractFromReceiver2: MessageRelay
+  let contract: MessageRelay
 
   beforeEach(async () => {
     const namedAccounts = await getNamedAccounts()
     deployer = namedAccounts.deployer
-    sender1 = namedAccounts.sender1
-    sender2 = namedAccounts.sender2
-    receiver1 = namedAccounts.receiver1
-    receiver2 = namedAccounts.receiver2
 
     await deployments.fixture('all')
 
-    messageRelayContractFromSender1 = await ethers.getContract('MessageRelay', sender1)
-    messageRelayContractFromSender2 = await ethers.getContract('MessageRelay', sender2)
-    messageRelayContractFromReceiver1 = await ethers.getContract('MessageRelay', receiver1)
-    messageRelayContractFromReceiver2 = await ethers.getContract('MessageRelay', receiver2)
+    contract = await ethers.getContract('MessageRelay', deployer)
   })
 
   describe('Public key', () => {
     it('reverts if public key does not exist for the username provided', async () => {
-      await expect(messageRelayContractFromSender1.getPublicKey(usernameSender1)).to.be.revertedWithCustomError(
-        messageRelayContractFromSender1,
+      await expect(contract.getPublicKey(usernameSender1)).to.be.revertedWithCustomError(
+        contract,
         'MessageRelay__NoPublicKey'
       )
     })
@@ -52,17 +41,17 @@ describe('MessageRelay', async () => {
       let response: ContractTransaction
 
       // creating the users
-      response = await messageRelayContractFromSender1.addUser(usernameSender1, publicKeySender1)
+      response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
       await response.wait()
-      response = await messageRelayContractFromReceiver1.addUser(usernameReceiver1, publicKeyReceiver1)
+      response = await contract.addUser(addressReceiver1, usernameReceiver1, publicKeyReceiver1)
       await response.wait()
 
       // sender can get receiver's public key
-      const receiverPublicKey = await messageRelayContractFromSender1.getPublicKey(usernameReceiver1)
+      const receiverPublicKey = await contract.getPublicKey(usernameReceiver1)
       assert.equal(receiverPublicKey, publicKeyReceiver1)
 
       // receiver can get sender's public key
-      const senderPublicKey = await messageRelayContractFromReceiver1.getPublicKey(usernameSender1)
+      const senderPublicKey = await contract.getPublicKey(usernameSender1)
       assert.equal(senderPublicKey, publicKeySender1)
     })
 
@@ -70,16 +59,16 @@ describe('MessageRelay', async () => {
       let response: ContractTransaction
       const newPublicKey = 'new_public_key'
 
-      response = await messageRelayContractFromSender1.addUser(usernameSender1, publicKeySender1)
+      response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
       await response.wait()
 
-      let currentPublicKey = await messageRelayContractFromSender1.getPublicKey(usernameSender1)
+      let currentPublicKey = await contract.getPublicKey(usernameSender1)
       assert.equal(currentPublicKey, publicKeySender1)
 
-      response = await messageRelayContractFromSender1.changeUserPublicKey(newPublicKey)
+      response = await contract.changeUserPublicKey(addressSender1, newPublicKey)
       await response.wait()
 
-      currentPublicKey = await messageRelayContractFromSender1.getPublicKey(usernameSender1)
+      currentPublicKey = await contract.getPublicKey(usernameSender1)
       assert.equal(currentPublicKey, newPublicKey)
     })
   })
@@ -90,42 +79,42 @@ describe('MessageRelay', async () => {
       let response: ContractTransaction
 
       // creating the users
-      response = await messageRelayContractFromSender1.addUser(usernameSender1, publicKeySender1)
+      response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
       await response.wait()
-      response = await messageRelayContractFromReceiver1.addUser(usernameReceiver1, publicKeyReceiver1)
+      response = await contract.addUser(addressReceiver1, usernameReceiver1, publicKeyReceiver1)
       await response.wait()
 
       // check if receiver has a message from the sender
-      let hasMessageFromSender = await messageRelayContractFromReceiver1.hasMessageFrom(usernameSender1)
+      let hasMessageFromSender = await contract.hasMessageFrom(addressReceiver1, usernameSender1)
       assert.equal(hasMessageFromSender, false)
-      let hasMessageToReceiver = await messageRelayContractFromSender1.hasMessageTo(usernameReceiver1)
+      let hasMessageToReceiver = await contract.hasMessageTo(addressSender1, usernameReceiver1)
       assert.equal(hasMessageToReceiver, false)
 
       // sending and receiving a message
-      response = await messageRelayContractFromSender1.sendMessage(usernameReceiver1, sentMessage)
+      response = await contract.sendMessage(addressSender1, usernameReceiver1, sentMessage)
       await response.wait()
-      hasMessageFromSender = await messageRelayContractFromReceiver1.hasMessageFrom(usernameSender1)
+      hasMessageFromSender = await contract.hasMessageFrom(addressReceiver1, usernameSender1)
       assert.equal(hasMessageFromSender, true)
-      hasMessageToReceiver = await messageRelayContractFromSender1.hasMessageTo(usernameReceiver1)
+      hasMessageToReceiver = await contract.hasMessageTo(addressSender1, usernameReceiver1)
       assert.equal(hasMessageToReceiver, true)
-      const receivedMessage = await messageRelayContractFromReceiver1.getMessage(usernameSender1)
+      const receivedMessage = await contract.getMessage(addressReceiver1, usernameSender1)
       assert.equal(receivedMessage.content, sentMessage)
 
       // message is deleted in state when receiver received the message
-      response = await messageRelayContractFromReceiver1.deleteMessageFrom(usernameSender1)
+      response = await contract.deleteMessageFrom(addressReceiver1, usernameSender1)
       await response.wait()
-      await expect(messageRelayContractFromReceiver1.getMessage(usernameSender1)).to.be.revertedWithCustomError(
-        messageRelayContractFromReceiver1,
+      await expect(contract.getMessage(addressReceiver1, usernameSender1)).to.be.revertedWithCustomError(
+        contract,
         'MessageRelay__NoMessage'
       )
-      await expect(messageRelayContractFromReceiver1.deleteMessageFrom(usernameSender1)).to.be.revertedWithCustomError(
-        messageRelayContractFromReceiver1,
+      await expect(contract.deleteMessageFrom(addressReceiver1, usernameSender1)).to.be.revertedWithCustomError(
+        contract,
         'MessageRelay__NoMessage'
       )
 
-      hasMessageFromSender = await messageRelayContractFromReceiver1.hasMessageFrom(usernameSender1)
+      hasMessageFromSender = await contract.hasMessageFrom(addressReceiver1, usernameSender1)
       assert.equal(hasMessageFromSender, false)
-      hasMessageToReceiver = await messageRelayContractFromSender1.hasMessageTo(usernameReceiver1)
+      hasMessageToReceiver = await contract.hasMessageTo(addressSender1, usernameReceiver1)
       assert.equal(hasMessageToReceiver, false)
     })
   })
@@ -133,60 +122,62 @@ describe('MessageRelay', async () => {
   describe('Validations', () => {
     describe('Registration', () => {
       it('reverts if username is too short', async () => {
-        await expect(messageRelayContractFromSender1.addUser('inv', 'publicKey')).to.be.revertedWithCustomError(
-          messageRelayContractFromSender1,
+        await expect(contract.addUser(addressSender1, 'inv', 'publicKey')).to.be.revertedWithCustomError(
+          contract,
           'MessageRelay__InvalidUsername'
         )
       })
       it('reverts if username is too long', async () => {
         const longUsername =
           'veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryvery_long_username'
-        await expect(messageRelayContractFromSender1.addUser(longUsername, 'publicKey')).to.be.revertedWithCustomError(
-          messageRelayContractFromSender1,
+        await expect(contract.addUser(addressSender1, longUsername, 'publicKey')).to.be.revertedWithCustomError(
+          contract,
           'MessageRelay__InvalidUsername'
         )
       })
       it('reverts if username consists of invalid characters', async () => {
-        await expect(
-          messageRelayContractFromSender1.addUser('@lphanumeric0nly', 'publicKey')
-        ).to.be.revertedWithCustomError(messageRelayContractFromSender1, 'MessageRelay__InvalidUsername')
-        await expect(messageRelayContractFromSender1.addUser('user name', 'publicKey')).to.be.revertedWithCustomError(
-          messageRelayContractFromSender1,
+        await expect(contract.addUser(addressSender1, '@lphanumeric0nly', 'publicKey')).to.be.revertedWithCustomError(
+          contract,
           'MessageRelay__InvalidUsername'
         )
-        await expect(messageRelayContractFromSender1.addUser('____', 'publicKey')).to.be.revertedWithCustomError(
-          messageRelayContractFromSender1,
+        await expect(contract.addUser(addressSender1, 'user name', 'publicKey')).to.be.revertedWithCustomError(
+          contract,
+          'MessageRelay__InvalidUsername'
+        )
+        await expect(contract.addUser(addressSender1, '____', 'publicKey')).to.be.revertedWithCustomError(
+          contract,
           'MessageRelay__InvalidUsername'
         )
       })
       it('reverts if user tries to create multiple account', async () => {
-        const response = await messageRelayContractFromSender1.addUser(usernameSender1, publicKeySender1)
+        const response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
         await response.wait()
 
-        await expect(
-          messageRelayContractFromSender1.addUser(usernameSender2, publicKeySender2)
-        ).to.be.revertedWithCustomError(messageRelayContractFromSender1, 'MessageRelay__AddressAlreadyRegistered')
+        await expect(contract.addUser(addressSender1, usernameSender2, publicKeySender2)).to.be.revertedWithCustomError(
+          contract,
+          'MessageRelay__AddressAlreadyRegistered'
+        )
       })
       it('reverts if username is already taken', async () => {
-        const response = await messageRelayContractFromSender1.addUser(usernameSender1, publicKeySender1)
+        const response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
         await response.wait()
 
         // username is already taken
         await expect(
-          messageRelayContractFromReceiver1.addUser(usernameSender1, publicKeySender1)
-        ).to.be.revertedWithCustomError(messageRelayContractFromReceiver1, 'MessageRelay__UsernameAlreadyExists')
+          contract.addUser(addressReceiver1, usernameSender1, publicKeySender1)
+        ).to.be.revertedWithCustomError(contract, 'MessageRelay__UsernameAlreadyExists')
       })
       it('reverts if username not found for the sender', async () => {
-        await expect(messageRelayContractFromSender1.getUsername()).to.be.revertedWithCustomError(
-          messageRelayContractFromSender1,
+        await expect(contract.getUsername(addressSender1)).to.be.revertedWithCustomError(
+          contract,
           'MessageRelay__NoUser'
         )
       })
       it('returns username of the sender', async () => {
-        const response = await messageRelayContractFromSender1.addUser(usernameSender1, publicKeySender1)
+        const response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
         await response.wait()
 
-        const username = await messageRelayContractFromSender1.getUsername()
+        const username = await contract.getUsername(addressSender1)
         assert.equal(username, usernameSender1)
       })
     })
@@ -194,15 +185,15 @@ describe('MessageRelay', async () => {
     describe('Messaging', () => {
       beforeEach(async () => {
         let response: ContractTransaction
-        response = await messageRelayContractFromSender1.addUser(usernameSender1, publicKeySender1)
+        response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
         await response.wait()
-        response = await messageRelayContractFromReceiver1.addUser(usernameReceiver1, publicKeyReceiver1)
+        response = await contract.addUser(addressReceiver1, usernameReceiver1, publicKeyReceiver1)
         await response.wait()
       })
 
       it('reverts if message is empty', async () => {
-        await expect(messageRelayContractFromSender1.sendMessage(usernameReceiver1, '')).to.be.revertedWithCustomError(
-          messageRelayContractFromSender1,
+        await expect(contract.sendMessage(addressSender1, usernameReceiver1, '')).to.be.revertedWithCustomError(
+          contract,
           'MessageRelay__InvalidMessage'
         )
       })
@@ -213,13 +204,14 @@ describe('MessageRelay', async () => {
         Interdum et malesuada fames ac ante ipsum primis in faucibus. Nullam volutpat lobortis ex sed scelerisque. Phasellus pellentesque nisl magna, at cursus nulla dignissim in. Quisque eu blandit lectus. Maecenas pulvinar, ante nec consectetur ornare, neque libero lobortis purus, in interdum tellus mi non lacus. Aenean suscipit libero ut posuere fermentum. Aenean et sodales nulla. Praesent eu faucibus sapien proin.
         `
         await expect(
-          messageRelayContractFromSender1.sendMessage(usernameReceiver1, longMessage)
-        ).to.be.revertedWithCustomError(messageRelayContractFromSender1, 'MessageRelay__InvalidMessage')
+          contract.sendMessage(addressSender1, usernameReceiver1, longMessage)
+        ).to.be.revertedWithCustomError(contract, 'MessageRelay__InvalidMessage')
       })
       it('reverts if receiver does not exist', async () => {
-        await expect(
-          messageRelayContractFromSender1.sendMessage(usernameReceiver2, 'u there?')
-        ).to.be.revertedWithCustomError(messageRelayContractFromSender1, 'MessageRelay__NoUser')
+        await expect(contract.sendMessage(addressSender1, usernameReceiver2, 'u there?')).to.be.revertedWithCustomError(
+          contract,
+          'MessageRelay__NoUser'
+        )
       })
     })
   })

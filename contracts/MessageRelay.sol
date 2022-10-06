@@ -23,33 +23,44 @@ contract MessageRelay {
     mapping(address => mapping(address => Message))
         private userAddressToMessage;
 
-    function addUser(string memory username, string memory publicKey) public {
+    function addUser(
+        address userAddress,
+        string memory username,
+        string memory publicKey
+    ) public {
         if (!Validator.validateUsername(username)) {
             revert MessageRelay__InvalidUsername();
         }
 
-        string memory addressUsername = addressToUsername[msg.sender];
+        string memory addressUsername = addressToUsername[userAddress];
         if (bytes(addressUsername).length != 0) {
             revert MessageRelay__AddressAlreadyRegistered();
         }
 
-        address userAddress = usernameToAddress[username];
-        if (userAddress != address(0x0)) {
+        address usernameAddress = usernameToAddress[username];
+        if (usernameAddress != address(0x0)) {
             revert MessageRelay__UsernameAlreadyExists();
         }
 
-        usernameToAddress[username] = msg.sender;
-        addressToUsername[msg.sender] = username;
+        usernameToAddress[username] = userAddress;
+        addressToUsername[userAddress] = username;
         usernameToPublicKey[username] = publicKey;
     }
 
-    function changeUserPublicKey(string memory publicKey) public payable {
-        string memory username = getUsername();
+    function changeUserPublicKey(address userAddress, string memory publicKey)
+        public
+        payable
+    {
+        string memory username = getUsername(userAddress);
         usernameToPublicKey[username] = publicKey;
     }
 
-    function getUsername() public view returns (string memory) {
-        string memory username = addressToUsername[msg.sender];
+    function getUsername(address userAddress)
+        public
+        view
+        returns (string memory)
+    {
+        string memory username = addressToUsername[userAddress];
         if (bytes(username).length == 0) {
             revert MessageRelay__NoUser();
         }
@@ -80,25 +91,27 @@ contract MessageRelay {
         return publicKey;
     }
 
-    function sendMessage(string memory username, string memory content) public {
+    function sendMessage(
+        address userAddress,
+        string memory username,
+        string memory content
+    ) public {
         if (!Validator.validateMessage(content)) {
             revert MessageRelay__InvalidMessage();
         }
 
         address receiverAddress = getUserAddress(username);
-        userAddressToMessage[receiverAddress][msg.sender] = Message(
-            content,
-            block.timestamp * 1000
-        );
+        Message memory message = Message(content, block.timestamp * 1000);
+        userAddressToMessage[receiverAddress][userAddress] = message;
     }
 
-    function getMessage(string memory fromUsername)
+    function getMessage(address userAddress, string memory fromUsername)
         public
         view
         returns (Message memory)
     {
         address from = getUserAddress(fromUsername);
-        Message memory message = userAddressToMessage[msg.sender][from];
+        Message memory message = userAddressToMessage[userAddress][from];
         if (bytes(message.content).length == 0) {
             revert MessageRelay__NoMessage();
         }
@@ -106,28 +119,35 @@ contract MessageRelay {
         return message;
     }
 
-    function deleteMessageFrom(string memory fromUsername) public payable {
+    function deleteMessageFrom(address userAddress, string memory fromUsername)
+        public
+        payable
+    {
         address from = getUserAddress(fromUsername);
-        Message memory message = userAddressToMessage[msg.sender][from];
+        Message memory message = userAddressToMessage[userAddress][from];
         if (bytes(message.content).length == 0) {
             revert MessageRelay__NoMessage();
         }
-        delete userAddressToMessage[msg.sender][from];
+        delete userAddressToMessage[userAddress][from];
     }
 
-    function hasMessageFrom(string memory fromUsername)
+    function hasMessageFrom(address userAddress, string memory fromUsername)
         public
         view
         returns (bool)
     {
         address from = getUserAddress(fromUsername);
-        Message memory message = userAddressToMessage[msg.sender][from];
+        Message memory message = userAddressToMessage[userAddress][from];
         return bytes(message.content).length > 0;
     }
 
-    function hasMessageTo(string memory toUsername) public view returns (bool) {
+    function hasMessageTo(address userAddress, string memory toUsername)
+        public
+        view
+        returns (bool)
+    {
         address to = getUserAddress(toUsername);
-        Message memory message = userAddressToMessage[to][msg.sender];
+        Message memory message = userAddressToMessage[to][userAddress];
         return bytes(message.content).length > 0;
     }
 }
