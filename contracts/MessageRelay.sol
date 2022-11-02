@@ -12,6 +12,11 @@ error MessageRelay__NoMessage();
 error MessageRelay__InvalidMessage();
 
 contract MessageRelay {
+    event UserAdded(address userAddress);
+    event MessageSent(address fromAddress, address toAddress);
+    event MessageDeleted(address fromAddress, address toAddress);
+    event PublicKeyUpdated(address userAddress);
+
     struct Message {
         string content;
         uint256 createdAt;
@@ -45,6 +50,8 @@ contract MessageRelay {
         usernameToAddress[username] = userAddress;
         addressToUsername[userAddress] = username;
         usernameToPublicKey[username] = publicKey;
+
+        emit UserAdded(userAddress);
     }
 
     function changeUserPublicKey(address userAddress, string memory publicKey)
@@ -53,6 +60,8 @@ contract MessageRelay {
     {
         string memory username = getUsername(userAddress);
         usernameToPublicKey[username] = publicKey;
+
+        emit PublicKeyUpdated(userAddress);
     }
 
     function getUsername(address userAddress)
@@ -103,6 +112,8 @@ contract MessageRelay {
         address receiverAddress = getUserAddress(username);
         Message memory message = Message(content, block.timestamp * 1000);
         userAddressToMessage[receiverAddress][userAddress] = message;
+
+        emit MessageSent(userAddress, receiverAddress);
     }
 
     function getMessage(address userAddress, string memory fromUsername)
@@ -129,6 +140,8 @@ contract MessageRelay {
             revert MessageRelay__NoMessage();
         }
         delete userAddressToMessage[userAddress][from];
+
+        emit MessageDeleted(from, userAddress);
     }
 
     function hasMessageFrom(address userAddress, string memory fromUsername)

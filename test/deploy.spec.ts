@@ -38,13 +38,15 @@ describe('MessageRelay', async () => {
     })
 
     it('allows getting anyones public key by anyone', async () => {
-      let response: ContractTransaction
-
       // creating the users
-      response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
-      await response.wait()
-      response = await contract.addUser(addressReceiver1, usernameReceiver1, publicKeyReceiver1)
-      await response.wait()
+      // response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
+      // await response.wait()
+      await expect(contract.addUser(addressSender1, usernameSender1, publicKeySender1))
+        .to.emit(contract, 'UserAdded')
+        .withArgs(addressSender1)
+      await expect(contract.addUser(addressReceiver1, usernameReceiver1, publicKeyReceiver1))
+        .to.emit(contract, 'UserAdded')
+        .withArgs(addressReceiver1)
 
       // sender can get receiver's public key
       const receiverPublicKey = await contract.getPublicKey(usernameReceiver1)
@@ -56,17 +58,18 @@ describe('MessageRelay', async () => {
     })
 
     it('changes current public key', async () => {
-      let response: ContractTransaction
       const newPublicKey = 'new_public_key'
 
-      response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
-      await response.wait()
+      await expect(contract.addUser(addressSender1, usernameSender1, publicKeySender1))
+        .to.emit(contract, 'UserAdded')
+        .withArgs(addressSender1)
 
       let currentPublicKey = await contract.getPublicKey(usernameSender1)
       assert.equal(currentPublicKey, publicKeySender1)
 
-      response = await contract.changeUserPublicKey(addressSender1, newPublicKey)
-      await response.wait()
+      await expect(contract.changeUserPublicKey(addressSender1, newPublicKey))
+        .to.emit(contract, 'PublicKeyUpdated')
+        .withArgs(addressSender1)
 
       currentPublicKey = await contract.getPublicKey(usernameSender1)
       assert.equal(currentPublicKey, newPublicKey)
@@ -79,10 +82,12 @@ describe('MessageRelay', async () => {
       let response: ContractTransaction
 
       // creating the users
-      response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
-      await response.wait()
-      response = await contract.addUser(addressReceiver1, usernameReceiver1, publicKeyReceiver1)
-      await response.wait()
+      await expect(contract.addUser(addressSender1, usernameSender1, publicKeySender1))
+        .to.emit(contract, 'UserAdded')
+        .withArgs(addressSender1)
+      await expect(contract.addUser(addressReceiver1, usernameReceiver1, publicKeyReceiver1))
+        .to.emit(contract, 'UserAdded')
+        .withArgs(addressReceiver1)
 
       // check if receiver has a message from the sender
       let hasMessageFromSender = await contract.hasMessageFrom(addressReceiver1, usernameSender1)
@@ -91,8 +96,9 @@ describe('MessageRelay', async () => {
       assert.equal(hasMessageToReceiver, false)
 
       // sending and receiving a message
-      response = await contract.sendMessage(addressSender1, usernameReceiver1, sentMessage)
-      await response.wait()
+      await expect(contract.sendMessage(addressSender1, usernameReceiver1, sentMessage))
+        .to.emit(contract, 'MessageSent')
+        .withArgs(addressSender1, addressReceiver1)
       hasMessageFromSender = await contract.hasMessageFrom(addressReceiver1, usernameSender1)
       assert.equal(hasMessageFromSender, true)
       hasMessageToReceiver = await contract.hasMessageTo(addressSender1, usernameReceiver1)
@@ -101,8 +107,9 @@ describe('MessageRelay', async () => {
       assert.equal(receivedMessage.content, sentMessage)
 
       // message is deleted in state when receiver received the message
-      response = await contract.deleteMessageFrom(addressReceiver1, usernameSender1)
-      await response.wait()
+      await expect(contract.deleteMessageFrom(addressReceiver1, usernameSender1))
+        .to.emit(contract, 'MessageDeleted')
+        .withArgs(addressSender1, addressReceiver1)
       await expect(contract.getMessage(addressReceiver1, usernameSender1)).to.be.revertedWithCustomError(
         contract,
         'MessageRelay__NoMessage'
@@ -159,8 +166,9 @@ describe('MessageRelay', async () => {
         )
       })
       it('reverts if username is already taken', async () => {
-        const response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
-        await response.wait()
+        await expect(contract.addUser(addressSender1, usernameSender1, publicKeySender1))
+          .to.emit(contract, 'UserAdded')
+          .withArgs(addressSender1)
 
         // username is already taken
         await expect(
@@ -174,8 +182,9 @@ describe('MessageRelay', async () => {
         )
       })
       it('returns username of the sender', async () => {
-        const response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
-        await response.wait()
+        await expect(contract.addUser(addressSender1, usernameSender1, publicKeySender1))
+          .to.emit(contract, 'UserAdded')
+          .withArgs(addressSender1)
 
         const username = await contract.getUsername(addressSender1)
         assert.equal(username, usernameSender1)
@@ -184,11 +193,12 @@ describe('MessageRelay', async () => {
 
     describe('Messaging', () => {
       beforeEach(async () => {
-        let response: ContractTransaction
-        response = await contract.addUser(addressSender1, usernameSender1, publicKeySender1)
-        await response.wait()
-        response = await contract.addUser(addressReceiver1, usernameReceiver1, publicKeyReceiver1)
-        await response.wait()
+        await expect(contract.addUser(addressSender1, usernameSender1, publicKeySender1))
+          .to.emit(contract, 'UserAdded')
+          .withArgs(addressSender1)
+        await expect(contract.addUser(addressReceiver1, usernameReceiver1, publicKeyReceiver1))
+          .to.emit(contract, 'UserAdded')
+          .withArgs(addressReceiver1)
       })
 
       it('reverts if message is empty', async () => {
