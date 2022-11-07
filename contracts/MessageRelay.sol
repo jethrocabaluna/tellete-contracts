@@ -13,8 +13,8 @@ error MessageRelay__InvalidMessage();
 
 contract MessageRelay {
     event UserAdded(address userAddress);
-    event MessageSent(address fromAddress, address toAddress);
-    event MessageDeleted(address fromAddress, address toAddress);
+    event MessageSent(address fromAddress, string toUsername);
+    event MessageDeleted(string fromUsername, address toAddress);
     event PublicKeyUpdated(address userAddress);
 
     struct Message {
@@ -113,7 +113,7 @@ contract MessageRelay {
         Message memory message = Message(content, block.timestamp * 1000);
         userAddressToMessage[receiverAddress][userAddress] = message;
 
-        emit MessageSent(userAddress, receiverAddress);
+        emit MessageSent(userAddress, username);
     }
 
     function getMessage(address userAddress, string memory fromUsername)
@@ -141,7 +141,7 @@ contract MessageRelay {
         }
         delete userAddressToMessage[userAddress][from];
 
-        emit MessageDeleted(from, userAddress);
+        emit MessageDeleted(fromUsername, userAddress);
     }
 
     function hasMessageFrom(address userAddress, string memory fromUsername)

@@ -98,7 +98,7 @@ describe('MessageRelay', async () => {
       // sending and receiving a message
       await expect(contract.sendMessage(addressSender1, usernameReceiver1, sentMessage))
         .to.emit(contract, 'MessageSent')
-        .withArgs(addressSender1, addressReceiver1)
+        .withArgs(addressSender1, usernameReceiver1)
       hasMessageFromSender = await contract.hasMessageFrom(addressReceiver1, usernameSender1)
       assert.equal(hasMessageFromSender, true)
       hasMessageToReceiver = await contract.hasMessageTo(addressSender1, usernameReceiver1)
@@ -109,7 +109,7 @@ describe('MessageRelay', async () => {
       // message is deleted in state when receiver received the message
       await expect(contract.deleteMessageFrom(addressReceiver1, usernameSender1))
         .to.emit(contract, 'MessageDeleted')
-        .withArgs(addressSender1, addressReceiver1)
+        .withArgs(usernameSender1, addressReceiver1)
       await expect(contract.getMessage(addressReceiver1, usernameSender1)).to.be.revertedWithCustomError(
         contract,
         'MessageRelay__NoMessage'
