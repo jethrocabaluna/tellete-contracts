@@ -12,10 +12,13 @@ error MessageRelay__NoMessage();
 error MessageRelay__InvalidMessage();
 
 contract MessageRelay {
-    event UserAdded(address userAddress);
-    event MessageSent(address fromAddress, string toUsername);
-    event MessageDeleted(string fromUsername, address toAddress);
-    event PublicKeyUpdated(address userAddress);
+    event UserAdded(address indexed userAddress);
+    event MessageSent(address indexed fromAddress, string indexed toUsername);
+    event MessageDeleted(
+        string indexed fromUsername,
+        address indexed toAddress
+    );
+    event PublicKeyUpdated(address indexed userAddress);
 
     struct Message {
         string content;
